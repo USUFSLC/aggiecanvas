@@ -1,11 +1,11 @@
 import Elysia from "elysia";
-import { setup } from "./setup";
-import { authController } from "./controllers/auth";
+import { setup } from "@/api/setup";
+import { authController, pixelController } from "@/api/controllers";
 
 export * from "./setup";
 
 const app = new Elysia().group("/api", (app) =>
-  app.use(setup).use(authController)
+  app.use(setup).use(authController).use(pixelController)
 );
 app.listen(process.env.PORT ?? 3000);
 

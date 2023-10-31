@@ -14,7 +14,7 @@ export const addUsers = async (knex: Knex) => {
     );
 
     await logOverPromise(
-      "adding users and users_sessions tables",
+      "adding users, users_sessions, aggie_tokens tables",
       knex.schema
         .createTable("users", (table) => {
           table.increments("id").primary();

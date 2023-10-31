@@ -1,10 +1,9 @@
 import { setup } from "@api/setup";
-import { User, UserDAO } from "@lib/database/dao";
+import { User } from "@lib/database/dao";
 import { randomUUID } from "crypto";
 import { Elysia, NotFoundError, t } from "elysia";
 
-export const A_NUMBER_REGEX = new RegExp(/^a[0-9]{8}$/i);
-
+const A_NUMBER_REGEX = new RegExp(/^a[0-9]{8}$/i);
 const tokenExpiration = 12 * 60 * 60 * 1000;
 const getTokenExpirationFromNow = () => new Date(Date.now() + tokenExpiration);
 
@@ -76,6 +75,28 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
       }),
       response: t.Object({
         sessionId: t.String(),
+      }),
+    }
+  );
+
+  app.get(
+    "/logout",
+    async ({ cookie: { userSession } }) => {
+      const session = await userDAO.findSession(userSession.value);
+      if (!session) {
+        return { success: true };
+      }
+
+      if (session) {
+        session.expires = new Date();
+      }
+      await userDAO.saveSession(session);
+
+      return { success: true };
+    },
+    {
+      response: t.Object({
+        success: t.Boolean(),
       }),
     }
   );
