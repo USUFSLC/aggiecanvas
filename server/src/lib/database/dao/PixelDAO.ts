@@ -2,6 +2,8 @@ import { applyUpdatesToSnapshot, encodeSnapshot } from "@lib/utils/snapshot";
 import { randomUUID } from "crypto";
 import { Knex } from "knex";
 import { unlinkSync } from "fs";
+import { builtinModules } from "module";
+import { BunFile } from "bun";
 
 export interface Grid {
   id?: number;
@@ -37,6 +39,8 @@ export interface PixelUpdate {
   created_at: Date;
 }
 
+const SNAPSHOT_TTL = 7 * 24 * 60 * 60 * 1000;
+
 export class PixelDAO {
   static GridsTable = "grids";
   static SnapshotsTable = "grid_snapshots";
@@ -53,7 +57,17 @@ export class PixelDAO {
       "desc"
     );
 
-    return grids as (Omit<Grid, "id"> & { id: number })[];
+    return (await Promise.all(
+      grids.map(async (grid) => {
+        return this.latestSnapshot(grid.id!).then((snapshot) => {
+          if (snapshot) return { ...grid, latest_snapshot: snapshot };
+          return grid;
+        });
+      })
+    )) as (Omit<Grid, "id"> & {
+      id: number;
+      latest_snapshot?: GridSnapshot;
+    })[];
   }
 
   public async findGrid(grid_id: number): Promise<Grid | undefined> {
@@ -140,14 +154,46 @@ export class PixelDAO {
     return newUpdate;
   }
 
-  public async deleteSnapshot(snapshot: GridSnapshot) {
+  public async findSnapshot(snapshot_id: number) {
+    const [snapshot] = await this.knexInstance<GridSnapshot>(
+      PixelDAO.SnapshotsTable
+    )
+      .where("id", snapshot_id)
+      .limit(1);
+    return snapshot;
+  }
+
+  public async getSnapshotFile(snapshot: GridSnapshot) {
     const path =
       process.env.SNAPSHOTS_LOCATION_PREFIX! + snapshot.snapshot_location;
-    unlinkSync(path);
 
-    await this.knexInstance(PixelDAO.SnapshotsTable)
-      .where("id", snapshot.id!)
-      .delete();
+    return Bun.file(path);
+  }
+
+  public async readSnapshotFile(snapshotFile: BunFile) {
+    const bytes = await snapshotFile.arrayBuffer();
+    return new Uint8Array(bytes);
+  }
+
+  public async deleteOldSnapshots(grid_id: number) {
+    const latest = await this.latestSnapshot(grid_id);
+    if (latest) {
+      const oldSnapshots = await this.knexInstance(PixelDAO.SnapshotsTable)
+        .where("grid_id", grid_id)
+        .andWhere("id", "!=", latest.id!)
+        .andWhere("created_at", "<=", new Date(Date.now() - SNAPSHOT_TTL));
+
+      await this.knexInstance(PixelDAO.SnapshotsTable)
+        .whereIn(
+          "id",
+          oldSnapshots.map((snapshot) => snapshot.id)
+        )
+        .delete();
+
+      for (const { snapshot_location } of oldSnapshots) {
+        unlinkSync(process.env.SNAPSHOTS_LOCATION_PREFIX! + snapshot_location);
+      }
+    }
   }
 
   public async takeSnapshot(grid_id: number) {
@@ -170,14 +216,10 @@ export class PixelDAO {
 
     let oldBytes = Uint8Array.from([]);
     if (old) {
-      const oldSnapshotPath =
-        process.env.SNAPSHOTS_LOCATION_PREFIX! + old.snapshot_location;
-
-      const file = Bun.file(oldSnapshotPath);
-      const buffer = await file.arrayBuffer();
-      oldBytes = new Uint8Array(buffer);
+      oldBytes = await this.readSnapshotFile(await this.getSnapshotFile(old));
     }
-    const bytes = applyUpdatesToSnapshot(
+
+    const newBytes = applyUpdatesToSnapshot(
       oldBytes,
       old ? old.rows : 0,
       old ? old.columns : 0,
@@ -192,14 +234,12 @@ export class PixelDAO {
       grid.columns
     );
 
+    await this.deleteOldSnapshots(grid_id);
+
     const writer = Bun.file(
       process.env.SNAPSHOTS_LOCATION_PREFIX! + newSnapshot.snapshot_location
     );
-    await Bun.write(writer, bytes);
-
-    const saved = await this.saveSnapshot(newSnapshot);
-
-    if (old) await this.deleteSnapshot(old);
-    return saved;
+    await Bun.write(writer, newBytes);
+    return await this.saveSnapshot(newSnapshot);
   }
 }

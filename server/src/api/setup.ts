@@ -23,18 +23,14 @@ const aggieCanvasConn = newAggieCanvasConnection();
 const userDAO = new UserDAO(aggieCanvasConn);
 const pixelDAO = new PixelDAO(aggieCanvasConn);
 
-const throwUnlessAuthed = async (sessionId?: string): Promise<void> => {
-  if (!sessionId) {
-    throw new Error("Unauthorized");
-  }
-  const session = await userDAO.findSession(sessionId);
+const throwUnlessAuthed = async (sessionId: string): Promise<void> => {
+  const session = sessionId ? await userDAO.findSession(sessionId) : false;
   if (!session || !(session && session.expires.getTime() > Date.now())) {
     throw new Error("Unauthorized");
   }
 };
 
 export const setup = new Elysia({ name: "setup" })
-  .use(swagger())
   .state("userDAO", userDAO)
   .state("pixelDAO", pixelDAO)
   .state("throwUnlessAuthed", throwUnlessAuthed)

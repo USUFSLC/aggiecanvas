@@ -1,6 +1,7 @@
 import { setup } from "@api/setup";
 import Elysia, { NotFoundError, t } from "elysia";
 import { Grid, PixelUpdate } from "@lib/database/dao/PixelDAO";
+import Stream from "@elysiajs/stream";
 
 const MAX_PUSH_UPDATES_BEFORE_SNAPSHOT = 30;
 
@@ -21,6 +22,7 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
           rows: t.Number(),
           columns: t.Number(),
           name: t.String(),
+          latest_snapshot: t.Optional(t.Object({})),
         })
       ),
     }
@@ -108,13 +110,24 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
         throwUnlessAuthed(userSession.value),
       body: t.Object({
         name: t.String(),
-        columns: t.Integer({ minimum: 10, maximum: 200 }),
-        rows: t.Integer({ minimum: 10, maximum: 200 }),
+        columns: t.Integer({ minimum: 10, maximum: 500 }),
+        rows: t.Integer({ minimum: 10, maximum: 500 }),
       }),
       response: t.Object({
         success: t.Boolean(),
       }),
     }
+  );
+
+  app.get(
+    "/snapshot/:id",
+    async ({ params: { id } }) => {
+      const snapshot = await pixelDAO.findSnapshot(id);
+      if (!snapshot) throw new NotFoundError();
+      const file = await pixelDAO.getSnapshotFile(snapshot);
+      return new Stream(file.stream());
+    },
+    { type: "text/plain", params: t.Object({ id: t.Numeric() }) }
   );
 
   app.get(
@@ -126,25 +139,21 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
       const latestSnapshot = await pixelDAO.latestSnapshot(id);
       const getUpdatesFrom = new Date(
         Math.max(
-          last?.getTime() ?? 0,
+          new Date(last).getTime(),
           latestSnapshot?.created_at.getTime() ?? -1
         )
       );
 
       const updates = [];
-      if (latestSnapshot) {
-        const file = Bun.file(
-          process.env.SNAPSHOTS_LOCATION_PREFIX! +
-            latestSnapshot.snapshot_location
-        );
-        const bytes = new Uint8Array(await file.arrayBuffer());
+      if (latestSnapshot?.created_at.getTime() == getUpdatesFrom.getTime()) {
         updates.push({
+          snapshotId: latestSnapshot.id!,
           rows: latestSnapshot.rows,
           columns: latestSnapshot.columns,
-          snapshot: bytes,
           snapshotTime: latestSnapshot.created_at,
         });
       }
+
       for (const update of await pixelDAO.updatesSince(id, getUpdatesFrom)) {
         updates.push({
           column: update.column,
@@ -164,7 +173,7 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
     },
     {
       params: t.Object({ id: t.Numeric() }),
-      query: t.Object({ last: t.Optional(t.Date()) }),
+      query: t.Object({ last: t.String() }),
       response: t.Object({
         name: t.String(),
         rows: t.Number(),
@@ -179,9 +188,9 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
               userId: t.Number(),
             }),
             t.Object({
+              snapshotId: t.Number(),
               rows: t.Number(),
               columns: t.Number(),
-              snapshot: t.Uint8Array(),
               snapshotTime: t.Date(),
             }),
           ])

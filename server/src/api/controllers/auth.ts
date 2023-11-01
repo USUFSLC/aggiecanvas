@@ -9,7 +9,7 @@ const getTokenExpirationFromNow = () => new Date(Date.now() + tokenExpiration);
 
 export const authController = new Elysia().use(setup).group("/auth", (app) => {
   const {
-    store: { userDAO, aggieAuthClient },
+    store: { userDAO, aggieAuthClient, throwUnlessAuthed },
   } = app;
 
   app.post(
@@ -45,7 +45,7 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
 
   app.get(
     "/aggie_auth_callback",
-    async ({ query: { token }, cookie: { userSession } }) => {
+    async ({ query: { token }, cookie: { userSession }, set }) => {
       const aggieToken = await userDAO.findAggieToken(token);
 
       if (aggieToken && aggieToken.expires.getTime() > Date.now()) {
@@ -65,6 +65,8 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
         userSession.secure = true;
         userSession.sameSite = true;
 
+        set.status = 301;
+        set.redirect = "/";
         return { sessionId: id };
       }
       throw new NotFoundError();
@@ -80,9 +82,33 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
   );
 
   app.get(
+    "/me",
+    async ({ cookie: { userSession }, set }) => {
+      const session = await userDAO.findSessionAndUser(userSession.value);
+      if (!session) {
+        set.status = 401;
+        return {};
+      }
+      return { username: session.user.username };
+    },
+    {
+      beforeHandle: async ({ cookie: { userSession } }) =>
+        throwUnlessAuthed(userSession.value),
+      response: t.Object({
+        username: t.Optional(t.String()),
+      }),
+    }
+  );
+
+  app.get(
     "/logout",
     async ({ cookie: { userSession } }) => {
+      if (!userSession) {
+        return { success: true };
+      }
+
       const session = await userDAO.findSession(userSession.value);
+      userSession.remove();
       if (!session) {
         return { success: true };
       }
