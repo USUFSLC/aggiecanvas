@@ -2,12 +2,12 @@ import { applyUpdatesToSnapshot, encodeSnapshot } from "@lib/utils/snapshot";
 import { randomUUID } from "crypto";
 import { Knex } from "knex";
 import { unlinkSync } from "fs";
-import { builtinModules } from "module";
 import { BunFile } from "bun";
 
 export interface Grid {
   id?: number;
   name: string;
+  public: boolean;
 
   rows: number;
   columns: number;
@@ -52,10 +52,9 @@ export class PixelDAO {
   }
 
   public async listGrids() {
-    const grids = await this.knexInstance<Grid>(PixelDAO.GridsTable).orderBy(
-      "created_at",
-      "desc"
-    );
+    const grids = await this.knexInstance<Grid>(PixelDAO.GridsTable)
+      .where("public", true)
+      .orderBy("created_at", "desc");
 
     return (await Promise.all(
       grids.map(async (grid) => {
@@ -128,6 +127,12 @@ export class PixelDAO {
       .returning("*");
 
     return newGrid;
+  }
+
+  public async hideGrid(grid_id: number) {
+    return await this.knexInstance<Grid>(PixelDAO.GridsTable)
+      .where("id", grid_id)
+      .update("public", false);
   }
 
   public async saveSnapshot(snapshot: GridSnapshot) {

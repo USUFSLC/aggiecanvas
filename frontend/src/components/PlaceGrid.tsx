@@ -1,10 +1,11 @@
-import { useRef, useEffect, useState } from "react";
+import { useCallback, useRef, useEffect, useState } from "react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { ColorSelector } from "./ColorSelector";
 import { SnapshotImage } from "./SnapshotImage";
 import { useAggieCanvasClient } from "@/context/AggieCanvasClient";
 import { useAuthContext } from "@/context/AuthContext";
 import { AVAILABLE_COLORS } from "./colors";
+import { PixelUpdate } from "@/utils/snapshot";
 
 export interface SnapshotImageProps {
   updateGrid: () => void;
@@ -12,6 +13,7 @@ export interface SnapshotImageProps {
   snapshot?: Uint8Array;
   rows: number;
   columns: number;
+  pixelUpdatesSinceLastSnapshot: PixelUpdate[];
 }
 
 interface Point {
@@ -19,23 +21,50 @@ interface Point {
   y: number;
 }
 
+const getRgb = (color: number) => [
+  (color >> 16) & 0xff,
+  (color >> 8) & 0xff,
+  color & 0xff,
+];
+
 export const PlaceGrid = ({
   updateGrid,
   gridId,
   snapshot,
   rows,
   columns,
+  pixelUpdatesSinceLastSnapshot,
 }: SnapshotImageProps) => {
   const canvasRef = useRef(null);
   const transformWrapper = useRef(null);
 
   const [mouseDown, setMouseDown] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [hoveringPixel, setHoveringPixel] = useState<Point | undefined>();
   const [selectedPixel, setSelectedPixel] = useState<Point | undefined>();
   const [currentColor, setCurrentColor] = useState<string>(AVAILABLE_COLORS[0]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const { client } = useAggieCanvasClient();
   const { user } = useAuthContext();
+
+  const runThroughPixelUpdates = (updates) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+
+    const newPixel = ctx.createImageData(1, 1);
+    for (const { row, column, color } of updates) {
+      const [r, g, b] = getRgb(color);
+
+      newPixel.data[0] = r; // R value
+      newPixel.data[1] = g;
+      newPixel.data[2] = b;
+      newPixel.data[3] = 255; // (fully opaque)
+
+      ctx.putImageData(newPixel, column, row);
+    }
+  };
 
   useEffect(() => {
     if (!transformWrapper.current || !selectedPixel) return;
@@ -45,7 +74,7 @@ export const PlaceGrid = ({
         Math.max(
           canvasRef.current.clientWidth,
           canvasRef.current.clientHeight
-        ) / 80;
+        ) / 50;
 
       const dx = -canvasRef.current.clientWidth / columns;
       const dy = -canvasRef.current.clientHeight / rows;
@@ -99,12 +128,22 @@ export const PlaceGrid = ({
     const blinkInterval = setInterval(blink, 20);
     return () => {
       clearInterval(blinkInterval);
-      ctx.putImageData(currentPixel, selectedPixel.x, selectedPixel.y);
+
+      for (let i = 0; i < 3; i++) {
+        blinkingPixel.data[i] =
+          snapshot[(selectedPixel.y * rows + selectedPixel.x) * 3 + i];
+      }
+      ctx.putImageData(blinkingPixel, selectedPixel.x, selectedPixel.y);
     };
-  }, [snapshot, selectedPixel]);
+  }, [snapshot, selectedPixel, pixelUpdatesSinceLastSnapshot]);
+
+  useEffect(() => {
+    runThroughPixelUpdates(pixelUpdatesSinceLastSnapshot);
+  }, [pixelUpdatesSinceLastSnapshot]);
 
   const pushPixel = () => {
-    if (selectedPixel)
+    if (selectedPixel) {
+      setIsLoading(true);
       client
         .postGridByIdPixel(gridId, {
           row: selectedPixel.y,
@@ -112,7 +151,49 @@ export const PlaceGrid = ({
           color:
             parseInt(currentColor.replaceAll("#", "").toLowerCase(), 16) >>> 0,
         })
-        .then(updateGrid);
+        .then(() => {
+          const update = updateGrid();
+          update.then(() => {
+            setSelectedPixel(undefined);
+            setTimeout(() => {
+              setIsLoading(false);
+            }, 100); // don't stop loading too fast
+          });
+        });
+    }
+  };
+
+  const onCanvasClick = (e) => {
+    setMouseDown(false);
+    if (isDragging) {
+      setIsDragging(false);
+      return;
+    }
+
+    if (
+      selectedPixel &&
+      selectedPixel.y === hoveringPixel.y &&
+      selectedPixel.x === hoveringPixel.x
+    ) {
+      setSelectedPixel(undefined);
+      return;
+    }
+
+    setSelectedPixel(hoveringPixel);
+  };
+
+  const onCanvasMouseMove = (e) => {
+    setIsDragging(mouseDown);
+
+    if (!canvasRef.current) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = Math.floor(((e.clientX - rect.left) / rect.width) * columns);
+    const y = Math.floor(((e.clientY - rect.top) / rect.height) * rows);
+
+    if (!hoveringPixel || x !== hoveringPixel.x || y !== hoveringPixel.y) {
+      setHoveringPixel({ x, y });
+    }
   };
 
   return (
@@ -126,34 +207,9 @@ export const PlaceGrid = ({
       >
         <TransformComponent>
           <div
-            onMouseMove={() => setIsDragging(mouseDown)}
+            onMouseMove={onCanvasMouseMove}
             onMouseDown={() => setMouseDown(true)}
-            onMouseUp={(e) => {
-              setMouseDown(false);
-              if (isDragging) {
-                setIsDragging(false);
-                return;
-              }
-              if (!canvasRef.current) return;
-
-              const rect = canvasRef.current.getBoundingClientRect();
-              const x = Math.floor(
-                ((e.clientX - rect.left) / rect.width) * columns
-              );
-              const y = Math.floor(
-                ((e.clientY - rect.top) / rect.height) * rows
-              );
-              if (
-                selectedPixel &&
-                selectedPixel.y == y &&
-                selectedPixel.x == x
-              ) {
-                setSelectedPixel(undefined);
-                return;
-              }
-
-              setSelectedPixel({ x, y });
-            }}
+            onMouseUp={onCanvasClick}
           >
             <SnapshotImage
               snapshot={snapshot}
@@ -175,7 +231,8 @@ export const PlaceGrid = ({
           style={{ maxWidth: "100%" }}
           type="submit"
           onClick={pushPixel}
-          disabled={!user || !selectedPixel}
+          aria-busy={isLoading.toString()}
+          disabled={isLoading || !user || !selectedPixel}
         >
           Submit
         </button>

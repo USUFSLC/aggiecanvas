@@ -22,7 +22,7 @@ export const Header = () => {
           </hgroup>
         </ul>
         <ul>
-          {user && (
+          {user ? (
             <li>
               <button
                 data-tooltip={`user: ${user?.username}`}
@@ -30,6 +30,10 @@ export const Header = () => {
               >
                 Logout
               </button>
+            </li>
+          ) : (
+            <li>
+              <button onClick={() => nav("/")}>Login</button>
             </li>
           )}
         </ul>

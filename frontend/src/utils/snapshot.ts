@@ -1,3 +1,9 @@
+export interface PixelUpdate {
+  row: number;
+  column: number;
+  color: number;
+}
+
 export const decodeSnapshot = (
   bytes: Uint8Array,
   rows: number,
@@ -43,7 +49,7 @@ export const applyUpdatesToSnapshot = (
   bytes: Uint8Array,
   snapshotRows: number,
   snapshotCols: number,
-  updates: { row: number; column: number; color: number }[],
+  updates: PixelUpdate[],
   newRows: number,
   newCols: number
 ) => {

@@ -25,7 +25,7 @@ export const Router = () => {
         </Route>
       ) : (
         <Route path="/" element={<Layout theme="dark" />}>
-          <Route path="*" element={<h1>Loading...</h1>} />
+          <Route path="*" element={<div aria-busy="true"></div>} />
         </Route>
       )}
     </Routes>

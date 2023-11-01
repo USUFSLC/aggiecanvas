@@ -13,6 +13,7 @@ export const createPixels = async (knex: Knex) => {
         .createTable("grids", (table) => {
           table.increments("id").primary();
           table.string("name");
+          table.boolean("public");
 
           table.integer("rows").unsigned().notNullable();
           table.integer("columns").unsigned().notNullable();

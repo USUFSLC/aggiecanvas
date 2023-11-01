@@ -6,13 +6,18 @@ import { Link } from "react-router-dom";
 export const AggieLogin = () => {
   const [anumber, setAnumber] = useState("");
   const [submit, setSubmit] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const { client } = useAggieCanvasClient();
   const { refreshUser } = useAuthContext();
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    client.postAuthAggie(null, { anumber }).then(() => setSubmit(true));
+    setLoading(true);
+    client.postAuthAggie(null, { anumber }).then(() => {
+      setSubmit(true);
+      setLoading(false);
+    });
   };
 
   useEffect(() => {
@@ -21,7 +26,8 @@ export const AggieLogin = () => {
 
   return (
     <div>
-      <h4 style={{ textAlign: "center" }}>Login</h4>
+      <h2 style={{ textAlign: "center" }}>Welcome.</h2>
+      <p style={{ textAlign: "center" }}>Please sign in.</p>
       <form onSubmit={handleSubmit}>
         <input
           name="username"
@@ -33,7 +39,9 @@ export const AggieLogin = () => {
           aria-invalid={!anumber.match(/^a[0-9]{8}$/i)}
           required
         />
-        <button type="submit">Submit</button>
+        <button aria-busy={loading.toString()} type="submit">
+          Submit
+        </button>
       </form>
       <hr />
       {submit ? (

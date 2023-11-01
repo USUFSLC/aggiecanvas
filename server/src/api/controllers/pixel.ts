@@ -3,11 +3,11 @@ import Elysia, { NotFoundError, t } from "elysia";
 import { Grid, PixelUpdate } from "@lib/database/dao/PixelDAO";
 import Stream from "@elysiajs/stream";
 
-const MAX_PUSH_UPDATES_BEFORE_SNAPSHOT = 30;
+const MAX_PUSH_UPDATES_BEFORE_SNAPSHOT = 40;
 
 export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
   const {
-    store: { pixelDAO, userDAO, throwUnlessAuthed },
+    store: { pixelDAO, userDAO, throwUnlessAuthed, throwUnlessAdmin },
   } = app;
 
   app.get(
@@ -47,7 +47,7 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
 
       const session = await userDAO.findSession(userSession.value);
       const grid = await pixelDAO.findGrid(id);
-      if (!grid) throw new NotFoundError();
+      if (!grid || !grid.public) throw new NotFoundError();
 
       if (row >= grid?.rows || column >= grid?.columns) {
         return { success: false };
@@ -82,43 +82,6 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
     }
   );
 
-  app.post(
-    "/new",
-    async ({ cookie: { userSession }, body: { name, rows, columns } }) => {
-      const userWithSession = await userDAO.findSessionAndUser(
-        userSession.value
-      );
-      const isAdmin = process.env.ADMIN_USERNAMES?.split(",")
-        .map((x) => x.toLowerCase())
-        .includes(userWithSession?.user?.username.toLowerCase() ?? "");
-
-      if (!isAdmin) throw new Error("You can't do that!");
-
-      const newGrid: Grid = {
-        name,
-        rows,
-        columns,
-      };
-      const grid = await pixelDAO.saveGrid(newGrid);
-
-      await pixelDAO.takeSnapshot(grid.id!);
-
-      return { success: true };
-    },
-    {
-      beforeHandle: async ({ cookie: { userSession } }) =>
-        throwUnlessAuthed(userSession.value),
-      body: t.Object({
-        name: t.String(),
-        columns: t.Integer({ minimum: 10, maximum: 500 }),
-        rows: t.Integer({ minimum: 10, maximum: 500 }),
-      }),
-      response: t.Object({
-        success: t.Boolean(),
-      }),
-    }
-  );
-
   app.get(
     "/snapshot/:id",
     async ({ params: { id } }) => {
@@ -134,7 +97,7 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
     "/:id",
     async ({ params: { id }, query: { last } }) => {
       const grid = await pixelDAO.findGrid(id);
-      if (!grid) throw new NotFoundError();
+      if (!grid || !grid.public) throw new NotFoundError();
 
       const latestSnapshot = await pixelDAO.latestSnapshot(id);
       const getUpdatesFrom = new Date(
@@ -195,6 +158,137 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
             }),
           ])
         ),
+      }),
+    }
+  );
+
+  app.post(
+    "/:id/pixel",
+    async ({
+      params: { id },
+      cookie: { userSession },
+      body: { row, column, color },
+    }) => {
+      const latestSnapshot = await pixelDAO.latestSnapshot(id);
+      const lastSnapshotTime = new Date(
+        latestSnapshot?.created_at.getTime() ?? "1970-01-01" // the beginning of time
+      );
+
+      const updates = await pixelDAO.updatesSince(id, lastSnapshotTime);
+      if (updates.length > MAX_PUSH_UPDATES_BEFORE_SNAPSHOT) {
+        await pixelDAO.takeSnapshot(id);
+      }
+
+      const session = await userDAO.findSession(userSession.value);
+      const grid = await pixelDAO.findGrid(id);
+      if (!grid) throw new NotFoundError();
+
+      if (row >= grid?.rows || column >= grid?.columns) {
+        return { success: false };
+      }
+
+      const newPixelUpdate: PixelUpdate = {
+        user_id: session!.user_id,
+        created_at: new Date(),
+        color,
+        grid_id: id,
+        row,
+        column,
+      };
+
+      await pixelDAO.savePixelUpdate(newPixelUpdate);
+      return { success: true };
+    },
+    {
+      beforeHandle: async ({ cookie: { userSession } }) =>
+        throwUnlessAuthed(userSession.value),
+      params: t.Object({
+        id: t.Numeric(),
+      }),
+      body: t.Object({
+        column: t.Integer(),
+        row: t.Integer(),
+        color: t.Integer({ minimum: 0, maximum: Math.pow(2, 32) - 1 }),
+      }),
+      response: t.Object({
+        success: t.Boolean(),
+      }),
+    }
+  );
+
+  app.post(
+    "/",
+    async ({ body: { name, rows, columns } }) => {
+      const newGrid: Grid = {
+        public: true,
+        name,
+        rows,
+        columns,
+      };
+      const grid = await pixelDAO.saveGrid(newGrid);
+
+      await pixelDAO.takeSnapshot(grid.id!);
+
+      return { success: true };
+    },
+    {
+      beforeHandle: async ({ cookie: { userSession } }) =>
+        throwUnlessAdmin(userSession.value),
+      body: t.Object({
+        name: t.String(),
+        columns: t.Integer({ minimum: 10, maximum: 500 }),
+        rows: t.Integer({ minimum: 10, maximum: 500 }),
+      }),
+      response: t.Object({
+        success: t.Boolean(),
+      }),
+    }
+  );
+
+  app.put(
+    "/:id",
+    async ({ params: { id }, body: { name, rows, columns } }) => {
+      const newGrid: Grid = {
+        id,
+        public: true,
+        name,
+        rows,
+        columns,
+      };
+      const grid = await pixelDAO.saveGrid(newGrid);
+      await pixelDAO.takeSnapshot(grid.id!);
+
+      return { success: true };
+    },
+    {
+      beforeHandle: async ({ cookie: { userSession } }) =>
+        throwUnlessAdmin(userSession.value),
+      params: t.Object({ id: t.Numeric() }),
+      body: t.Object({
+        name: t.String(),
+        columns: t.Integer({ minimum: 10, maximum: 500 }),
+        rows: t.Integer({ minimum: 10, maximum: 500 }),
+      }),
+      response: t.Object({
+        success: t.Boolean(),
+      }),
+    }
+  );
+
+  app.delete(
+    "/:id",
+    async ({ params: { id } }) => {
+      await pixelDAO.deleteOldSnapshots(id);
+      await pixelDAO.hideGrid(id);
+
+      return { success: true };
+    },
+    {
+      beforeHandle: async ({ cookie: { userSession } }) =>
+        throwUnlessAdmin(userSession.value),
+      params: t.Object({ id: t.Numeric() }),
+      response: t.Object({
+        success: t.Boolean(),
       }),
     }
   );

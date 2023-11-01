@@ -15,7 +15,7 @@ export const SnapshotImage = ({
   draggable,
   canvasRef,
 }: SnapshotImageProps) => {
-  useEffect(() => {
+  const refresh = async () => {
     if (!snapshot || rows <= 0 || columns <= 0 || !canvasRef?.current) return;
 
     const canvas = canvasRef.current;
@@ -27,12 +27,16 @@ export const SnapshotImage = ({
       const pixelIndex = (i * 4) / 3;
 
       imageData.data[pixelIndex] = snapshot[i]; // R value
-      imageData.data[pixelIndex + 1] = snapshot[i + 1]; // G value
-      imageData.data[pixelIndex + 2] = snapshot[i + 2]; // B value
-      imageData.data[pixelIndex + 3] = 255; // A value (fully opaque)
+      imageData.data[pixelIndex + 1] = snapshot[i + 1];
+      imageData.data[pixelIndex + 2] = snapshot[i + 2];
+      imageData.data[pixelIndex + 3] = 255; // (fully opaque)
     }
 
     ctx.putImageData(imageData, 0, 0);
+  };
+
+  useEffect(() => {
+    refresh();
   }, [snapshot, rows, columns, canvasRef]);
 
   return (

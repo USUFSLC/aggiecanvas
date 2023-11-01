@@ -53,6 +53,8 @@ canvas {
   width: auto;
 
   display: block;
+
+  cursor: pointer;
 }
 
 .grid-thumbnail {
@@ -64,7 +66,7 @@ canvas {
 
 .color-selector {
   display: flex;
-  width: 100%;
+  max-width: 100%;
   padding: 1rem;
   align-items: center;
   justify-content: space-between;
@@ -100,4 +102,13 @@ canvas {
   justify-content: center;
   align-items: center;
   max-width: 800px;
+}
+
+article {
+  transition: transform 250ms;
+}
+
+article:hover {
+  transform: translateY(-8px);
+  cursor: pointer;
 }
