@@ -39,7 +39,7 @@ export const AggieLogin = () => {
           aria-invalid={!anumber.match(/^a[0-9]{8}$/i)}
           required
         />
-        <button aria-busy={loading.toString()} type="submit">
+        <button aria-busy={!!loading} type="submit">
           Submit
         </button>
       </form>

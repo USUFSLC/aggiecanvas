@@ -20,6 +20,7 @@ export const SnapshotImage = ({
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
     const imageData = ctx.createImageData(columns, rows);
 

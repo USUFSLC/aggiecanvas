@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState } from "react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { ColorSelector } from "./ColorSelector";
 import { SnapshotImage } from "./SnapshotImage";
@@ -8,7 +8,7 @@ import { AVAILABLE_COLORS } from "./colors";
 import { PixelUpdate } from "@/utils/snapshot";
 
 export interface SnapshotImageProps {
-  updateGrid: () => void;
+  updateGrid: () => Promise<void>;
   gridId: number;
   snapshot?: Uint8Array;
   rows: number;
@@ -35,8 +35,8 @@ export const PlaceGrid = ({
   columns,
   pixelUpdatesSinceLastSnapshot,
 }: SnapshotImageProps) => {
-  const canvasRef = useRef(null);
-  const transformWrapper = useRef(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const transformWrapper = useRef<any>(null);
 
   const [mouseDown, setMouseDown] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -48,10 +48,11 @@ export const PlaceGrid = ({
   const { client } = useAggieCanvasClient();
   const { user } = useAuthContext();
 
-  const runThroughPixelUpdates = (updates) => {
+  const runThroughPixelUpdates = (updates: PixelUpdate[]) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
     const newPixel = ctx.createImageData(1, 1);
     for (const { row, column, color } of updates) {
@@ -70,6 +71,8 @@ export const PlaceGrid = ({
     if (!transformWrapper.current || !selectedPixel) return;
 
     setTimeout(() => {
+      if (!canvasRef.current || !transformWrapper.current) return;
+
       const targetScale =
         Math.max(
           canvasRef.current.clientWidth,
@@ -92,6 +95,7 @@ export const PlaceGrid = ({
     const canvas = canvasRef.current;
     if (!canvas || !selectedPixel) return;
     const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
     const currentPixel = ctx.getImageData(
       selectedPixel.x,
@@ -129,10 +133,11 @@ export const PlaceGrid = ({
     return () => {
       clearInterval(blinkInterval);
 
-      for (let i = 0; i < 3; i++) {
-        blinkingPixel.data[i] =
-          snapshot[(selectedPixel.y * rows + selectedPixel.x) * 3 + i];
-      }
+      if (snapshot)
+        for (let i = 0; i < 3; i++) {
+          blinkingPixel.data[i] =
+            snapshot[(selectedPixel.y * rows + selectedPixel.x) * 3 + i];
+        }
       ctx.putImageData(blinkingPixel, selectedPixel.x, selectedPixel.y);
     };
   }, [snapshot, selectedPixel, pixelUpdatesSinceLastSnapshot]);
@@ -163,7 +168,7 @@ export const PlaceGrid = ({
     }
   };
 
-  const onCanvasClick = (e) => {
+  const onCanvasClick = () => {
     setMouseDown(false);
     if (isDragging) {
       setIsDragging(false);
@@ -172,8 +177,8 @@ export const PlaceGrid = ({
 
     if (
       selectedPixel &&
-      selectedPixel.y === hoveringPixel.y &&
-      selectedPixel.x === hoveringPixel.x
+      selectedPixel.y === hoveringPixel?.y &&
+      selectedPixel.x === hoveringPixel?.x
     ) {
       setSelectedPixel(undefined);
       return;
@@ -182,7 +187,7 @@ export const PlaceGrid = ({
     setSelectedPixel(hoveringPixel);
   };
 
-  const onCanvasMouseMove = (e) => {
+  const onCanvasMouseMove = (e: { clientX: number; clientY: number }) => {
     setIsDragging(mouseDown);
 
     if (!canvasRef.current) return;
@@ -231,7 +236,7 @@ export const PlaceGrid = ({
           style={{ maxWidth: "100%" }}
           type="submit"
           onClick={pushPixel}
-          aria-busy={isLoading.toString()}
+          aria-busy={!!isLoading}
           disabled={isLoading || !user || !selectedPixel}
         >
           Submit

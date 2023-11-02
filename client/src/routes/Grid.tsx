@@ -1,7 +1,7 @@
 import { PlaceGrid } from "@/components/PlaceGrid";
 import { useAggieCanvasClient } from "@/context/AggieCanvasClient";
 import { PixelUpdate, applyUpdatesToSnapshot } from "@/utils/snapshot";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 type GridInfo = { columns: number; rows: number; name: string };

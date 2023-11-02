@@ -1,0 +1,43 @@
+version: '3'
+
+services:
+  client:
+    build:
+      dockerfile: Dockerfile.client
+    networks:
+      - webapp
+    ports:
+      - 27105:80
+    restart: always
+    container_name: aggiecanvasv2-client
+    hostname: client
+    env_file: .env
+
+  api:
+    build:
+      dockerfile: Dockerfile.server
+    networks:
+      - webapp
+      - db
+    restart: always
+    container_name: aggiecanvasv2-server
+    env_file: .env
+
+  db:
+    image: postgres:15
+    restart: always
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - db
+    container_name: aggiecanvasv2-db
+    env_file: .env
+
+networks:
+  webapp:
+    driver: bridge
+  db:
+    driver: bridge
+
+volumes:
+  pgdata:

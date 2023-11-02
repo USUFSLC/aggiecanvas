@@ -1,0 +1,9 @@
+FROM oven/bun
+
+COPY ./server /app
+
+WORKDIR /app
+
+RUN bun install
+
+CMD bun run /app/src/lib/database/migrations/index.ts && bun run /app/src/api/index.ts
