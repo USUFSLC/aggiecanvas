@@ -1,10 +1,9 @@
 import Elysia from "elysia";
 import { newAggieCanvasConnection } from "@lib/database";
-import { UserDAO } from "@lib/database/dao";
+import { UserDAO, PixelDAO } from "@lib/database/dao";
 
 import OpenAPIClientAxios from "openapi-client-axios";
 import { Client as AggieAuthClient } from "../aggie-auth";
-import { PixelDAO } from "@lib/database/dao/PixelDAO";
 
 const aggieAuthApi = new OpenAPIClientAxios({
   definition: process.env.AGGIE_AUTH_HOST! + "/swagger/json",
