@@ -14,7 +14,7 @@ export const AggieLogin = () => {
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     setLoading(true);
-    client.postAuthAggie(null, { anumber }).then(() => {
+    client.postAuthAggie(null, { anumber: anumber.toLowerCase() }).then(() => {
       setSubmit(true);
       setLoading(false);
     });

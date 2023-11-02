@@ -8,7 +8,10 @@ export * from "./setup";
 const app = new Elysia().group("/api", (app) =>
   app.use(setup).use(authController).use(pixelController).use(swagger())
 );
-app.listen(process.env.PORT ?? 3000);
+app.listen({
+  port: process.env.PORT ?? 3000,
+  hostname: process.env.HOST ?? "0.0.0.0",
+});
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`

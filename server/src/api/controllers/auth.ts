@@ -38,7 +38,7 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
       return { success: true };
     },
     {
-      body: t.Object({ anumber: t.RegExp(A_NUMBER_REGEX) }),
+      body: t.Object({ anumber: t.RegExp(A_NUMBER_REGEX, { default: "" }) }),
       response: t.Object({ success: t.Boolean() }),
     }
   );
