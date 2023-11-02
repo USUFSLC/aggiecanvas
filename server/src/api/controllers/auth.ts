@@ -17,7 +17,7 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
     async ({ body: { anumber } }) => {
       const { token, expire_at } = await aggieAuthClient
         .postAuthaggie(null, {
-          anumber,
+          anumber: anumber.toLowerCase(),
         })
         .then(({ data }) => data);
 
