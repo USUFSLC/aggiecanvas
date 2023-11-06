@@ -5,7 +5,8 @@ import { useAuthContext } from "@/context/AuthContext";
 import { Layout } from "@/Layout";
 import { Grids } from "@/routes/Grids";
 import { Grid } from "@/routes/Grid";
-import { AggieLogin } from "./routes/AggieLogin";
+import { AggieLogin } from "@/routes/AggieLogin";
+import { FourOhFour } from "@/routes/FourOhFour";
 
 export const Router = () => {
   const { user } = useAuthContext();
@@ -22,6 +23,8 @@ export const Router = () => {
 
           <Route path="grids" element={<Grids />} />
           <Route path="grid/:id" element={<Grid />} />
+
+          <Route path="*" element={<FourOhFour />} />
         </Route>
       ) : (
         <Route path="/" element={<Layout theme="dark" />}>

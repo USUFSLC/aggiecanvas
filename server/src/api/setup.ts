@@ -5,6 +5,7 @@ import { UserDAO, PixelDAO } from "@lib/database/dao";
 import OpenAPIClientAxios from "openapi-client-axios";
 import { Client as AggieAuthClient } from "../aggie-auth";
 
+// aggie auth
 const aggieAuthApi = new OpenAPIClientAxios({
   definition: process.env.AGGIE_AUTH_HOST! + "/swagger/json",
   withServer: 0,
@@ -14,13 +15,15 @@ const aggieAuthApi = new OpenAPIClientAxios({
     },
   },
 });
-aggieAuthApi.withServer({ url: process.env.AGGIE_AUTH_HOST! });
+
 const aggieAuthClient = await aggieAuthApi.init<AggieAuthClient>();
 
+// dao layer stuff
 const aggieCanvasConn = newAggieCanvasConnection();
 const userDAO = new UserDAO(aggieCanvasConn);
 const pixelDAO = new PixelDAO(aggieCanvasConn);
 
+// auth stuff
 export class UnauthorizedError extends Error {}
 
 const throwUnlessAuthed = async (sessionId: string): Promise<void> => {
@@ -43,6 +46,8 @@ const throwUnlessAdmin = async (sessionId: string): Promise<void> => {
 
   if (!isAdmin) throw new UnauthorizedError("You can't do that!");
 };
+
+// the api
 
 export const setup = new Elysia({ name: "setup" })
   .error({

@@ -1,11 +1,11 @@
-import { applyUpdatesToSnapshot, encodeSnapshot } from "@lib/utils/snapshot";
+import { applyUpdatesToSnapshot } from "@lib/utils/snapshot";
 import { randomUUID } from "crypto";
 import { Knex } from "knex";
 import { unlinkSync } from "fs";
 import { BunFile } from "bun";
 
 export interface Grid {
-  id?: number;
+  id: number;
   name: string;
   public: boolean;
 
@@ -16,7 +16,7 @@ export interface Grid {
 }
 
 export interface GridSnapshot {
-  id?: number;
+  id: number;
 
   grid_id: number;
   rows: number;
@@ -63,8 +63,7 @@ export class PixelDAO {
           return grid;
         });
       })
-    )) as (Omit<Grid, "id"> & {
-      id: number;
+    )) as (Grid & {
       latest_snapshot?: GridSnapshot;
     })[];
   }
@@ -119,7 +118,7 @@ export class PixelDAO {
     return update;
   }
 
-  public async saveGrid(grid: Grid) {
+  public async saveGrid(grid: Omit<Grid, "id">) {
     const [newGrid] = await this.knexInstance<Grid>(PixelDAO.GridsTable)
       .insert(grid)
       .onConflict(["id"])
@@ -135,7 +134,7 @@ export class PixelDAO {
       .update("public", false);
   }
 
-  public async saveSnapshot(snapshot: GridSnapshot) {
+  public async saveSnapshot(snapshot: Omit<GridSnapshot, "id">) {
     const [newSnapshot] = await this.knexInstance<GridSnapshot>(
       PixelDAO.SnapshotsTable
     )
@@ -205,7 +204,7 @@ export class PixelDAO {
     const grid = await this.findGrid(grid_id);
     if (!grid) return;
 
-    const newSnapshot: GridSnapshot = {
+    const newSnapshot: Omit<GridSnapshot, "id"> = {
       grid_id,
       created_at: new Date(),
       rows: grid.rows,

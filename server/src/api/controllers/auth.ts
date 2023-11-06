@@ -3,9 +3,23 @@ import { User } from "@lib/database/dao";
 import { randomUUID } from "crypto";
 import { Elysia, NotFoundError, t } from "elysia";
 
-const A_NUMBER_REGEX = new RegExp(/^a[0-9]{8}$/i);
 const tokenExpiration = 12 * 60 * 60 * 1000;
 const getTokenExpirationFromNow = () => new Date(Date.now() + tokenExpiration);
+
+const ANumberStringDTO = t.RegExp(new RegExp(/^a[0-9]{8}$/i), { default: "" });
+const BooleanStringDTO = t.RegExp(new RegExp(/^(true|false)$/), {
+  default: "false",
+});
+
+const SessionDTO = t.Object({
+  id: t.String(),
+  user_id: t.Number(),
+  expires: t.String({ format: "date-time" }),
+});
+
+const UserDTO = t.Object({
+  username: t.Optional(t.String()),
+});
 
 export const authController = new Elysia().use(setup).group("/auth", (app) => {
   const {
@@ -38,47 +52,50 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
       return { success: true };
     },
     {
-      body: t.Object({ anumber: t.RegExp(A_NUMBER_REGEX, { default: "" }) }),
+      body: t.Object({ anumber: ANumberStringDTO }),
       response: t.Object({ success: t.Boolean() }),
-    }
+    },
   );
 
   app.get(
     "/aggie_auth_callback",
-    async ({ query: { token }, cookie: { userSession }, set }) => {
+    async ({ query: { token, redirect }, cookie: { userSession }, set }) => {
       const aggieToken = await userDAO.findAggieToken(token);
 
-      if (aggieToken && aggieToken.expires.getTime() > Date.now()) {
-        const id = randomUUID();
-        const expires = getTokenExpirationFromNow();
-        await userDAO.saveSession({
-          id,
-          user_id: aggieToken.user_id,
-          expires,
-        });
-        await userDAO.deleteAggieAuthToken(token);
+      if (!aggieToken || aggieToken.expires.getTime() <= Date.now())
+        throw new NotFoundError();
 
-        userSession.value = id;
-        userSession.path = "/";
-        userSession.expires = expires;
-        userSession.httpOnly = true;
-        userSession.secure = true;
-        userSession.sameSite = true;
+      const id = randomUUID();
+      const expires = getTokenExpirationFromNow();
+      const newSession = {
+        id,
+        user_id: aggieToken.user_id,
+        expires,
+      };
 
-        set.status = 301;
+      await userDAO.saveSession(newSession);
+      await userDAO.deleteAggieAuthToken(token);
+
+      userSession.value = id;
+      userSession.path = "/";
+      userSession.expires = expires;
+      userSession.httpOnly = true;
+      userSession.secure = true;
+      userSession.sameSite = true;
+
+      if (redirect === "true") {
         set.redirect = "/";
-        return { sessionId: id };
       }
-      throw new NotFoundError();
+
+      return { ...newSession, expires: newSession.expires.toISOString() };
     },
     {
       query: t.Object({
         token: t.String(),
+        redirect: BooleanStringDTO,
       }),
-      response: t.Object({
-        sessionId: t.String(),
-      }),
-    }
+      response: SessionDTO,
+    },
   );
 
   app.get(
@@ -94,10 +111,8 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
     {
       beforeHandle: async ({ cookie: { userSession } }) =>
         throwUnlessAuthed(userSession.value),
-      response: t.Object({
-        username: t.Optional(t.String()),
-      }),
-    }
+      response: UserDTO,
+    },
   );
 
   app.get(
@@ -124,7 +139,7 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
       response: t.Object({
         success: t.Boolean(),
       }),
-    }
+    },
   );
 
   return app;

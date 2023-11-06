@@ -1,4 +1,4 @@
-import Elysia from "elysia";
+import { Elysia, t } from "elysia";
 import { setup } from "@/api/setup";
 import { authController, pixelController } from "@/api/controllers";
 import swagger from "@elysiajs/swagger";
@@ -6,7 +6,22 @@ import swagger from "@elysiajs/swagger";
 export * from "./setup";
 
 const app = new Elysia().group("/api", (app) =>
-  app.use(setup).use(authController).use(pixelController).use(swagger())
+  app
+    .use(setup)
+    .get("/health", () => "OK", { response: t.String() })
+    .use(authController)
+    .use(pixelController)
+    .use(
+      swagger({
+        documentation: {
+          info: {
+            title: "AggieCanvasAPI",
+            version: "0.0.1",
+          },
+          servers: [{ url: "https://aggiecanvas.linux.usu.edu/api" }],
+        },
+      }),
+    ),
 );
 app.listen({
   port: process.env.PORT ?? 3000,
@@ -14,5 +29,5 @@ app.listen({
 });
 
 console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
+  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
 );
