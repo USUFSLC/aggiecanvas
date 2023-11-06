@@ -15,7 +15,7 @@ const aggieAuthApi = new OpenAPIClientAxios({
     },
   },
 });
-aggieAuthApi.withServer({ url: process.env.AGGIE_AUTH_HOST! });
+
 const aggieAuthClient = await aggieAuthApi.init<AggieAuthClient>();
 
 // dao layer stuff

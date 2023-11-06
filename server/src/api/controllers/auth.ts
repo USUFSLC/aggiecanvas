@@ -54,7 +54,7 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
     {
       body: t.Object({ anumber: ANumberStringDTO }),
       response: t.Object({ success: t.Boolean() }),
-    }
+    },
   );
 
   app.get(
@@ -95,7 +95,7 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
         redirect: BooleanStringDTO,
       }),
       response: SessionDTO,
-    }
+    },
   );
 
   app.get(
@@ -112,7 +112,7 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
       beforeHandle: async ({ cookie: { userSession } }) =>
         throwUnlessAuthed(userSession.value),
       response: UserDTO,
-    }
+    },
   );
 
   app.get(
@@ -139,7 +139,7 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
       response: t.Object({
         success: t.Boolean(),
       }),
-    }
+    },
   );
 
   return app;

@@ -43,6 +43,7 @@ const GridDTO = t.Object({
   rows: t.Number(),
   columns: t.Number(),
   name: t.String(),
+  public: t.Boolean(),
   latest_snapshot: t.Optional(SnapshotDTO),
 });
 
@@ -54,22 +55,24 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
   app.get(
     "/list",
     async () =>
-      (await pixelDAO.listGrids()).map((grid) => {
-        return {
-          ...grid,
-          created_at: grid.created_at!.toISOString(),
-          latest_snapshot: grid.latest_snapshot
-            ? {
-                ...grid.latest_snapshot,
-                created_at: grid.latest_snapshot.created_at!.toISOString(),
-              }
-            : undefined,
-        };
-      }),
+      (await pixelDAO.listGrids())
+        .filter((grid) => grid.public)
+        .map((grid) => {
+          return {
+            ...grid,
+            created_at: grid.created_at!.toISOString(),
+            latest_snapshot: grid.latest_snapshot
+              ? {
+                  ...grid.latest_snapshot,
+                  created_at: grid.latest_snapshot.created_at!.toISOString(),
+                }
+              : undefined,
+          };
+        }),
     {
       description: "list grids and related snapshot file ids",
       response: t.Array(GridDTO),
-    }
+    },
   );
 
   app.get(
@@ -77,15 +80,17 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
     async ({ params: { id } }) => {
       const snapshot = await pixelDAO.findSnapshot(id);
       if (!snapshot) throw new NotFoundError();
+
       const file = await pixelDAO.getSnapshotFile(snapshot);
-      return new Stream(file.stream());
+      if (await file.exists()) return new Stream(file.stream());
+      throw new NotFoundError();
     },
     {
       description:
         "binary stream of a snapshot in simple 32-bit color (R << 16, G << 8, B) in 1-D array format",
       type: "text/plain",
       params: t.Object({ id: t.Numeric() }),
-    }
+    },
   );
 
   app.get(
@@ -98,8 +103,8 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
       const getUpdatesFrom = new Date(
         Math.max(
           new Date(last).getTime(),
-          latestSnapshot?.created_at.getTime() ?? -1
-        )
+          latestSnapshot?.created_at.getTime() ?? -1,
+        ),
       );
 
       const updates = [];
@@ -109,7 +114,7 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
 
       for (const pixelUpdate of await pixelDAO.updatesSince(
         id,
-        getUpdatesFrom
+        getUpdatesFrom,
       )) {
         updates.push(pixelUpdate);
       }
@@ -128,7 +133,7 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
         grid: GridDTO,
         updates: t.Array(t.Any([PixelUpdateDTO, SnapshotDTO])),
       }),
-    }
+    },
   );
 
   app.post(
@@ -150,7 +155,7 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
         throwUnlessAdmin(userSession.value),
       body: GridUpdateDTO,
       response: GridDTO,
-    }
+    },
   );
 
   app.post(
@@ -162,7 +167,7 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
     }) => {
       const latestSnapshot = await pixelDAO.latestSnapshot(id);
       const lastSnapshotTime = new Date(
-        latestSnapshot?.created_at.getTime() ?? "1970-01-01" // the beginning of time
+        latestSnapshot?.created_at.getTime() ?? "1970-01-01", // the beginning of time
       );
 
       const updates = await pixelDAO.updatesSince(id, lastSnapshotTime);
@@ -199,7 +204,7 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
       }),
       body: PixelSetDTO,
       response: SuccessDTO,
-    }
+    },
   );
 
   app.put(
@@ -224,7 +229,7 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
       params: t.Object({ id: t.Numeric() }),
       body: GridUpdateDTO,
       response: GridDTO,
-    }
+    },
   );
 
   app.delete(
@@ -241,7 +246,7 @@ export const pixelController = new Elysia().use(setup).group("/grid", (app) => {
         throwUnlessAdmin(userSession.value),
       params: t.Object({ id: t.Numeric() }),
       response: SuccessDTO,
-    }
+    },
   );
 
   return app;

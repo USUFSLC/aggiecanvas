@@ -76,7 +76,7 @@ export const PlaceGrid = ({
       const targetScale =
         Math.max(
           canvasRef.current.clientWidth,
-          canvasRef.current.clientHeight
+          canvasRef.current.clientHeight,
         ) / 50;
 
       const dx = -canvasRef.current.clientWidth / columns;
@@ -86,7 +86,7 @@ export const PlaceGrid = ({
         dx * selectedPixel.x * targetScale - (dx * columns) / 2,
         dy * selectedPixel.y * targetScale - (dy * rows) / 2,
         targetScale,
-        200
+        200,
       );
     });
   }, [selectedPixel, rows, columns, canvasRef]);
@@ -101,7 +101,7 @@ export const PlaceGrid = ({
       selectedPixel.x,
       selectedPixel.y,
       1,
-      1
+      1,
     );
 
     const blinkingPixel = ctx.createImageData(1, 1);
@@ -133,11 +133,13 @@ export const PlaceGrid = ({
     return () => {
       clearInterval(blinkInterval);
 
-      if (snapshot)
+      const { x, y } = selectedPixel;
+      if (snapshot) {
         for (let i = 0; i < 3; i++) {
-          blinkingPixel.data[i] =
-            snapshot[(selectedPixel.y * rows + selectedPixel.x) * 3 + i];
+          blinkingPixel.data[i] = snapshot[(y * rows + x) * 3 + i];
         }
+        blinkingPixel.data[3] = 255;
+      }
 
       ctx.putImageData(blinkingPixel, selectedPixel.x, selectedPixel.y);
     };
