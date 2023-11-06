@@ -83,7 +83,7 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
       userSession.secure = true;
       userSession.sameSite = true;
 
-      if (redirect) {
+      if (redirect === "true") {
         set.redirect = "/";
       }
 
