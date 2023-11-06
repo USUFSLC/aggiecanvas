@@ -27,9 +27,11 @@ declare namespace Paths {
     namespace GetAuthaggie {
         namespace Parameters {
             export type AggieToken = string;
+            export type WantsRedirect = string;
         }
         export interface QueryParameters {
             aggieToken: Parameters.AggieToken;
+            wantsRedirect?: Parameters.WantsRedirect;
         }
         namespace Responses {
             export interface $200 {
@@ -48,7 +50,7 @@ declare namespace Paths {
             }
         }
     }
-    namespace GetTokenByApiToken {
+    namespace GetTokenVerifyByApiToken {
         namespace Parameters {
             export type ApiToken = string;
         }
@@ -155,13 +157,13 @@ export interface OperationMethods {
     config?: AxiosRequestConfig  
   ): OperationResponse<Paths.DeleteToken.Responses.$200>
   /**
-   * getTokenByApiToken
+   * getTokenVerifyByApiToken
    */
-  'getTokenByApiToken'(
-    parameters?: Parameters<Paths.GetTokenByApiToken.PathParameters> | null,
+  'getTokenVerifyByApiToken'(
+    parameters?: Parameters<Paths.GetTokenVerifyByApiToken.PathParameters> | null,
     data?: any,
     config?: AxiosRequestConfig  
-  ): OperationResponse<Paths.GetTokenByApiToken.Responses.$200>
+  ): OperationResponse<Paths.GetTokenVerifyByApiToken.Responses.$200>
 }
 
 export interface PathsDictionary {
@@ -237,15 +239,15 @@ export interface PathsDictionary {
       config?: AxiosRequestConfig  
     ): OperationResponse<Paths.DeleteToken.Responses.$200>
   }
-  ['/token/{apiToken}']: {
+  ['/token/verify/{apiToken}']: {
     /**
-     * getTokenByApiToken
+     * getTokenVerifyByApiToken
      */
     'get'(
-      parameters?: Parameters<Paths.GetTokenByApiToken.PathParameters> | null,
+      parameters?: Parameters<Paths.GetTokenVerifyByApiToken.PathParameters> | null,
       data?: any,
       config?: AxiosRequestConfig  
-    ): OperationResponse<Paths.GetTokenByApiToken.Responses.$200>
+    ): OperationResponse<Paths.GetTokenVerifyByApiToken.Responses.$200>
   }
 }
 

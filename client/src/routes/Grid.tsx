@@ -31,14 +31,14 @@ export const Grid = () => {
     let currentSnapshot: Snapshot | undefined = snapshot;
 
     const snapshotUpdateIdx = newGrid.updates.findLastIndex(
-      (update) => update.snapshotId
+      (update) => update.grid_id
     );
 
     if (snapshotUpdateIdx != -1) {
       const snapshotupdate = newGrid.updates[snapshotUpdateIdx];
 
       currentSnapshot = await client
-        .getGridSnapshotById(snapshotupdate.snapshotId, null, {
+        .getGridSnapshotById(snapshotupdate.id, null, {
           responseType: "arraybuffer",
         })
         .then((snapshot) => {
@@ -52,8 +52,8 @@ export const Grid = () => {
 
     if (
       (snapshotUpdateIdx !== -1 ||
-        newGrid.rows !== grid?.rows ||
-        newGrid.columns !== grid?.columns) &&
+        newGrid.grid.rows !== grid?.rows ||
+        newGrid.grid.columns !== grid?.columns) &&
       currentSnapshot
     ) {
       currentSnapshot.data = applyUpdatesToSnapshot(
@@ -64,8 +64,8 @@ export const Grid = () => {
           snapshotUpdateIdx + 1,
           newGrid.updates.length
         ) as PixelUpdate[],
-        newGrid.rows,
-        newGrid.columns
+        newGrid.grid.rows,
+        newGrid.grid.columns
       );
 
       setPixelUpdatesSinceLastSnapshot([]);
@@ -77,7 +77,7 @@ export const Grid = () => {
       ]);
     }
 
-    setGrid(newGrid);
+    setGrid(newGrid.grid);
   };
 
   useEffect(() => {

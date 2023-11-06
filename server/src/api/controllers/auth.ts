@@ -3,14 +3,18 @@ import { User } from "@lib/database/dao";
 import { randomUUID } from "crypto";
 import { Elysia, NotFoundError, t } from "elysia";
 
-const A_NUMBER_REGEX = new RegExp(/^a[0-9]{8}$/i);
 const tokenExpiration = 12 * 60 * 60 * 1000;
 const getTokenExpirationFromNow = () => new Date(Date.now() + tokenExpiration);
+
+const ANumberStringDTO = t.RegExp(new RegExp(/^a[0-9]{8}$/i), { default: "" });
+const BooleanStringDTO = t.RegExp(new RegExp(/^(true|false)$/), {
+  default: "false",
+});
 
 const SessionDTO = t.Object({
   id: t.String(),
   user_id: t.Number(),
-  expires: t.Date(),
+  expires: t.String({ format: "date-time" }),
 });
 
 const UserDTO = t.Object({
@@ -48,9 +52,9 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
       return { success: true };
     },
     {
-      body: t.Object({ anumber: t.RegExp(A_NUMBER_REGEX, { default: "" }) }),
+      body: t.Object({ anumber: ANumberStringDTO }),
       response: t.Object({ success: t.Boolean() }),
-    },
+    }
   );
 
   app.get(
@@ -82,15 +86,16 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
       if (redirect) {
         set.redirect = "/";
       }
-      return newSession;
+
+      return { ...newSession, expires: newSession.expires.toISOString() };
     },
     {
       query: t.Object({
         token: t.String(),
-        redirect: t.Boolean({ default: true }),
+        redirect: BooleanStringDTO,
       }),
       response: SessionDTO,
-    },
+    }
   );
 
   app.get(
@@ -107,7 +112,7 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
       beforeHandle: async ({ cookie: { userSession } }) =>
         throwUnlessAuthed(userSession.value),
       response: UserDTO,
-    },
+    }
   );
 
   app.get(
@@ -134,7 +139,7 @@ export const authController = new Elysia().use(setup).group("/auth", (app) => {
       response: t.Object({
         success: t.Boolean(),
       }),
-    },
+    }
   );
 
   return app;

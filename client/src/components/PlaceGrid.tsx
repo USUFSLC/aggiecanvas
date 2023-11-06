@@ -138,6 +138,7 @@ export const PlaceGrid = ({
           blinkingPixel.data[i] =
             snapshot[(selectedPixel.y * rows + selectedPixel.x) * 3 + i];
         }
+
       ctx.putImageData(blinkingPixel, selectedPixel.x, selectedPixel.y);
     };
   }, [snapshot, selectedPixel, pixelUpdatesSinceLastSnapshot]);

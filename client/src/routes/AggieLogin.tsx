@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 export const AggieLogin = () => {
-  const [anumber, setAnumber] = useState("");
+  const [anumber, setAnumber] = useState<string>("");
   const [submit, setSubmit] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
+  const [valid, setValid] = useState<boolean>(false);
 
   const { client } = useAggieCanvasClient();
   const { refreshUser } = useAuthContext();
@@ -14,15 +15,26 @@ export const AggieLogin = () => {
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     setLoading(true);
-    client.postAuthAggie(null, { anumber: anumber.toLowerCase() }).then(() => {
-      setSubmit(true);
-      setLoading(false);
-    });
+    client
+      .postAuthAggie(null, { anumber: anumber.toLowerCase() })
+      .then(() => {
+        setSubmit(true);
+        setLoading(false);
+      })
+      .catch((e) => {
+        console.error(e);
+        setSubmit(true);
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
     refreshUser();
   }, []);
+
+  useEffect(() => {
+    setValid(!!anumber.match(/^a[0-9]{8}$/i));
+  }, [anumber]);
 
   return (
     <div>
@@ -36,10 +48,14 @@ export const AggieLogin = () => {
           autoComplete="off"
           onChange={(e) => setAnumber(e.target.value)}
           value={anumber}
-          aria-invalid={!anumber.match(/^a[0-9]{8}$/i)}
+          aria-invalid={!valid}
           required
         />
-        <button aria-busy={!!loading} type="submit">
+        <button
+          aria-busy={!!loading}
+          disabled={!valid || !!loading}
+          type="submit"
+        >
           Submit
         </button>
       </form>

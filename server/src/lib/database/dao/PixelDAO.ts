@@ -5,7 +5,7 @@ import { unlinkSync } from "fs";
 import { BunFile } from "bun";
 
 export interface Grid {
-  id?: number;
+  id: number;
   name: string;
   public: boolean;
 
@@ -16,7 +16,7 @@ export interface Grid {
 }
 
 export interface GridSnapshot {
-  id?: number;
+  id: number;
 
   grid_id: number;
   rows: number;
@@ -62,9 +62,8 @@ export class PixelDAO {
           if (snapshot) return { ...grid, latest_snapshot: snapshot };
           return grid;
         });
-      }),
-    )) as (Omit<Grid, "id"> & {
-      id: number;
+      })
+    )) as (Grid & {
       latest_snapshot?: GridSnapshot;
     })[];
   }
@@ -78,10 +77,10 @@ export class PixelDAO {
   }
 
   public async latestSnapshot(
-    grid_id: number,
+    grid_id: number
   ): Promise<GridSnapshot | undefined> {
     const [snapshot] = await this.knexInstance<GridSnapshot>(
-      PixelDAO.SnapshotsTable,
+      PixelDAO.SnapshotsTable
     )
       .where("grid_id", grid_id)
       .orderBy("created_at", "desc")
@@ -92,10 +91,10 @@ export class PixelDAO {
 
   public async updatesSince(
     grid_id: number,
-    date: Date,
+    date: Date
   ): Promise<PixelUpdate[]> {
     const updates = await this.knexInstance<PixelUpdate>(
-      PixelDAO.PixelUpdatesTable,
+      PixelDAO.PixelUpdatesTable
     )
       .where("created_at", ">=", date)
       .where("grid_id", grid_id);
@@ -106,10 +105,10 @@ export class PixelDAO {
   public async lastPixelUpdate(
     grid_id: number,
     row: number,
-    col: number,
+    col: number
   ): Promise<PixelUpdate | undefined> {
     const [update] = await this.knexInstance<PixelUpdate>(
-      PixelDAO.PixelUpdatesTable,
+      PixelDAO.PixelUpdatesTable
     )
       .where("grid_id", grid_id)
       .where("column", col)
@@ -119,7 +118,7 @@ export class PixelDAO {
     return update;
   }
 
-  public async saveGrid(grid: Grid) {
+  public async saveGrid(grid: Omit<Grid, "id">) {
     const [newGrid] = await this.knexInstance<Grid>(PixelDAO.GridsTable)
       .insert(grid)
       .onConflict(["id"])
@@ -135,9 +134,9 @@ export class PixelDAO {
       .update("public", false);
   }
 
-  public async saveSnapshot(snapshot: GridSnapshot) {
+  public async saveSnapshot(snapshot: Omit<GridSnapshot, "id">) {
     const [newSnapshot] = await this.knexInstance<GridSnapshot>(
-      PixelDAO.SnapshotsTable,
+      PixelDAO.SnapshotsTable
     )
       .insert(snapshot)
       .onConflict(["id"])
@@ -149,7 +148,7 @@ export class PixelDAO {
 
   public async savePixelUpdate(pixelUpdate: PixelUpdate) {
     const [newUpdate] = await this.knexInstance<PixelUpdate>(
-      PixelDAO.PixelUpdatesTable,
+      PixelDAO.PixelUpdatesTable
     )
       .insert(pixelUpdate)
       .onConflict(["id"])
@@ -161,7 +160,7 @@ export class PixelDAO {
 
   public async findSnapshot(snapshot_id: number) {
     const [snapshot] = await this.knexInstance<GridSnapshot>(
-      PixelDAO.SnapshotsTable,
+      PixelDAO.SnapshotsTable
     )
       .where("id", snapshot_id)
       .limit(1);
@@ -191,7 +190,7 @@ export class PixelDAO {
       await this.knexInstance(PixelDAO.SnapshotsTable)
         .whereIn(
           "id",
-          oldSnapshots.map((snapshot) => snapshot.id),
+          oldSnapshots.map((snapshot) => snapshot.id)
         )
         .delete();
 
@@ -205,7 +204,7 @@ export class PixelDAO {
     const grid = await this.findGrid(grid_id);
     if (!grid) return;
 
-    const newSnapshot: GridSnapshot = {
+    const newSnapshot: Omit<GridSnapshot, "id"> = {
       grid_id,
       created_at: new Date(),
       rows: grid.rows,
@@ -216,7 +215,7 @@ export class PixelDAO {
     const old = await this.latestSnapshot(grid_id);
     const updatesSince = await this.updatesSince(
       grid_id,
-      old?.created_at ?? new Date("1970-01-01"),
+      old?.created_at ?? new Date("1970-01-01")
     );
 
     let oldBytes = Uint8Array.from([]);
@@ -236,13 +235,13 @@ export class PixelDAO {
         };
       }),
       grid.rows,
-      grid.columns,
+      grid.columns
     );
 
     await this.deleteOldSnapshots(grid_id);
 
     const writer = Bun.file(
-      process.env.SNAPSHOTS_LOCATION_PREFIX! + newSnapshot.snapshot_location,
+      process.env.SNAPSHOTS_LOCATION_PREFIX! + newSnapshot.snapshot_location
     );
     await Bun.write(writer, newBytes);
     return await this.saveSnapshot(newSnapshot);

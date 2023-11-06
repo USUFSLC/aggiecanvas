@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "gen-aggiecanvas-client": "node ./node_modules/openapi-client-axios-typegen/typegen http://localhost:3000/api/swagger/json > src/aggiecanvas-openapi.d.ts"
+    "gen-aggiecanvas-client": "node ./node_modules/openapi-client-axios-typegen/typegen https://aggiecanvas.linux.usu.edu/api/swagger/json > src/aggiecanvas-openapi.d.ts"
   },
   "dependencies": {
     "@picocss/pico": "^1.5.10",
