@@ -31,7 +31,7 @@ export const Grid = () => {
     let currentSnapshot: Snapshot | undefined = snapshot;
 
     const snapshotUpdateIdx = newGrid.updates.findLastIndex(
-      (update) => update.grid_id
+      (update) => update.snapshot_location
     );
 
     if (snapshotUpdateIdx != -1) {
