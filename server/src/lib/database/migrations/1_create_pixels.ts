@@ -40,7 +40,7 @@ export const createPixels = async (knex: Knex) => {
 
             table.integer("row").unsigned();
             table.integer("column").unsigned();
-            table.bigInteger("color").unsigned();
+            table.integer("color").unsigned();
             table.timestamp("created_at");
 
             table.index(["grid_id", "created_at"]);

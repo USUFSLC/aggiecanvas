@@ -16,7 +16,6 @@ const imgToColorArray = async (
   const { data, info } = await maybeResized
     .raw()
     .toBuffer({ resolveWithObject: true });
-  console.log(info.channels);
   const img: number[] = [];
 
   const arr = Uint8Array.from(data);

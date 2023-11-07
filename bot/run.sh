@@ -1,7 +1,7 @@
 #!/bin/bash
 
 bun run src/index.ts \
-  --img fslc.png --width 50 --height 50 \
+  --img julia.png --width 80 --height 80 \
   --node 1 --nnodes 1 --period 100 \
   --grid 1 \
-  --topleftx 170 --toplefty 200
+  --topleftx 50 --toplefty 50
