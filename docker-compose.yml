@@ -23,7 +23,7 @@ services:
     container_name: aggiecanvasv2-server
     env_file: .env
     volumes:
-      - /home/ususfslc/aggiecanvas-snapshots:/snapshots:rw
+      - /home/usufslc/aggiecanvas-snapshots:/snapshots:rw
 
   db:
     image: postgres:15
